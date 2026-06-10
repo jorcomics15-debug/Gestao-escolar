@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Me Leva Taxi - Sistema de Contatos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #0f172a;
+            --secondary: #1e293b;
+            --accent: #e94560;
+            --accent-light: #f43f5e;
+            --gold: #f4d03f;
+            --surface: #ffffff;
+            --surface-2: #f8fafc;
+            --border: #e2e8f0;
+            --text: #334155;
+            --text-light: #64748b;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--primary); min-height: 100vh; color: var(--text); line-height: 1.5; }
+
+        /* ===== AUTH ===== */
+        .auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); position: relative; overflow: hidden; }
+        .auth-screen::before { content: ''; position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(233,69,96,0.08) 0%, transparent 70%); top: -200px; right: -200px; }
+        .auth-screen::after { content: ''; position: absolute; width: 400px; height: 400px; background: radial-gradient(circle, rgba(244,208,63,0.06) 0%, transparent 70%); bottom: -100px; left: -100px; }
+        .auth-card { background: var(--surface); border-radius: 20px; padding: 48px; width: 100%; max-width: 440px; box-shadow: 0 25px 80px -20px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05); position: relative; z-index: 1; }
+        .auth-brand { text-align: center; margin-bottom: 36px; }
+        .auth-brand .logo-ring { width: 80px; height: 80px; background: linear-gradient(135deg, var(--accent), var(--gold)); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 32px; color: #fff; margin-bottom: 20px; box-shadow: 0 12px 40px rgba(233,69,96,0.3); position: relative; }
+        .auth-brand .logo-ring::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid rgba(233,69,96,0.2); }
+        .auth-brand h1 { font-size: 26px; font-weight: 700; color: var(--primary); letter-spacing: -0.5px; }
+        .auth-brand p { font-size: 13px; color: var(--text-muted); margin-top: 6px; font-weight: 400; }
+        .auth-tabs { display: flex; gap: 4px; background: var(--surface-2); border-radius: 12px; padding: 4px; margin-bottom: 28px; }
+        .auth-tab { flex: 1; padding: 10px 16px; border: none; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-muted); background: transparent; transition: all 0.25s; }
+        .auth-tab.active { background: var(--surface); color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .field { margin-bottom: 18px; }
+        .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .field input, .field select { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 14px; color: var(--text); background: var(--surface); transition: all 0.2s; outline: none; }
+        .field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(233,69,96,0.08); }
+        .field input::placeholder { color: var(--text-muted); }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.25s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-accent { background: linear-gradient(135deg, var(--accent), var(--accent-light)); color: #fff; box-shadow: 0 8px 24px rgba(233,69,96,0.25); }
+        .btn-accent:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(233,69,96,0.35); }
+        .btn-accent:active { transform: translateY(0); }
+        .auth-hint { text-align: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .auth-hint p { font-size: 11px; color: var(--text-muted); line-height: 1.8; }
+        .auth-hint p strong { color: var(--text); font-weight: 600; }
+
+        /* ===== APP LAYOUT ===== */
+        .app { display: none; min-height: 100vh; }
+        .sidebar { position: fixed; left: 0; top: 0; width: 260px; height: 100vh; background: var(--secondary); color: #fff; z-index: 100; display: flex; flex-direction: column; }
+        .sidebar-head { padding: 28px 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .sidebar-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+        .sidebar-logo .icon { width: 42px; height: 42px; background: linear-gradient(135deg, var(--accent), var(--gold)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .sidebar-logo h2 { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+        .sidebar-head span { font-size: 11px; color: var(--text-muted); margin-left: 54px; display: block; margin-top: -2px; }
+        .sidebar-nav { padding: 16px 12px; flex: 1; }
+        .nav-link { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--text-muted); transition: all 0.2s; margin-bottom: 2px; font-weight: 500; }
+        .nav-link i { width: 20px; text-align: center; font-size: 15px; }
+        .nav-link:hover { background: rgba(255,255,255,0.04); color: #fff; }
+        .nav-link.active { background: linear-gradient(135deg, rgba(233,69,96,0.9), rgba(244,63,94,0.8)); color: #fff; box-shadow: 0 4px 16px rgba(233,69,96,0.2); }
+        .sidebar-foot { padding: 16px; border-top: 1px solid rgba(255,255,255,0.06); }
+        .user-card { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .user-avatar { width: 38px; height: 38px; background: linear-gradient(135deg, var(--gold), var(--accent)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; }
+        .user-info h4 { font-size: 13px; font-weight: 600; }
+        .user-info span { font-size: 10px; color: var(--text-muted); }
+        .btn-logout { width: 100%; padding: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: var(--text-muted); border-radius: 8px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-logout:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); color: #f87171; }
+
+        .main { margin-left: 260px; padding: 28px 32px; min-height: 100vh; }
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+
+        /* ===== HOME ===== */
+        .home-hero { text-align: center; padding: 80px 20px 60px; }
+        .home-hero .taxi-icon { font-size: 72px; margin-bottom: 24px; filter: drop-shadow(0 8px 24px rgba(244,208,63,0.2)); }
+        .home-hero h1 { font-size: 40px; font-weight: 800; color: #fff; letter-spacing: -1px; margin-bottom: 8px; }
+        .home-hero .tagline { font-size: 17px; color: var(--gold); font-weight: 500; margin-bottom: 48px; }
+        .home-stats { display: flex; justify-content: center; gap: 60px; margin-bottom: 48px; }
+        .home-stat { text-align: center; }
+        .home-stat .num { font-size: 42px; font-weight: 800; color: #fff; line-height: 1; }
+        .home-stat .label { font-size: 13px; color: var(--text-muted); margin-top: 6px; font-weight: 500; }
+        .home-quote { max-width: 520px; margin: 0 auto; padding: 28px 32px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); position: relative; }
+        .home-quote::before { content: '"'; position: absolute; top: 12px; left: 20px; font-size: 48px; color: var(--accent); opacity: 0.3; font-family: Georgia, serif; line-height: 1; }
+        .home-quote p { color: #cbd5e1; font-style: italic; font-size: 15px; line-height: 1.7; position: relative; z-index: 1; }
+        .home-quote .author { color: var(--gold); font-size: 12px; margin-top: 12px; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* ===== PAGE HEADER ===== */
+        .page-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; }
+        .page-top h2 { font-size: 24px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+        .page-top p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+        .page-actions { display: flex; gap: 10px; }
+        .btn-sm { padding: 10px 18px; border: none; border-radius: 10px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+        .btn-sm i { font-size: 13px; }
+        .btn-cta { background: linear-gradient(135deg, var(--accent), var(--accent-light)); color: #fff; box-shadow: 0 4px 16px rgba(233,69,96,0.2); }
+        .btn-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(233,69,96,0.3); }
+        .btn-ghost { background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-ghost:hover { background: rgba(255,255,255,0.1); }
+
+        /* ===== CARDS ===== */
+        .cards-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 22px; color: #fff; transition: all 0.3s; }
+        .stat-card:hover { background: rgba(255,255,255,0.05); transform: translateY(-2px); }
+        .stat-card .icon-wrap { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 14px; }
+        .stat-card .icon-wrap.blue { background: rgba(59,130,246,0.12); color: #60a5fa; }
+        .stat-card .icon-wrap.green { background: rgba(16,185,129,0.12); color: #34d399; }
+        .stat-card .icon-wrap.orange { background: rgba(245,158,11,0.12); color: #fbbf24; }
+        .stat-card .icon-wrap.purple { background: rgba(168,85,247,0.12); color: #c084fc; }
+        .stat-card .value { font-size: 26px; font-weight: 800; margin-bottom: 4px; line-height: 1; }
+        .stat-card .label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+
+        /* ===== TABLE ===== */
+        .table-card { background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+        .table-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .table-head h3 { font-size: 15px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .table-head h3 i { color: var(--accent); }
+        .search-box { position: relative; }
+        .search-box input { padding: 10px 12px 10px 36px; border: 1.5px solid var(--border); border-radius: 10px; font-family: inherit; font-size: 13px; width: 260px; outline: none; transition: all 0.2s; }
+        .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(233,69,96,0.06); }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { padding: 14px 16px; text-align: left; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; background: var(--surface-2); }
+        td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text); }
+        tr:hover td { background: #f8fafc; }
+        .td-user { display: flex; align-items: center; gap: 10px; }
+        .td-avatar { width: 34px; height: 34px; background: linear-gradient(135deg, var(--accent), var(--gold)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 12px; }
+        .td-badge { padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: #dcfce7; color: #166534; }
+        .td-actions { display: flex; gap: 5px; }
+        .action-btn { width: 30px; height: 30px; border-radius: 8px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all 0.2s; }
+        .action-btn.view { background: #f3e8ff; color: #9333ea; }
+        .action-btn.view:hover { background: #9333ea; color: #fff; }
+        .action-btn.edit { background: #dbeafe; color: #2563eb; }
+        .action-btn.edit:hover { background: #2563eb; color: #fff; }
+        .action-btn.del { background: #fee2e2; color: #dc2626; }
+        .action-btn.del:hover { background: #dc2626; color: #fff; }
+
+        /* ===== MODAL ===== */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: var(--surface); border-radius: 20px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 80px -20px rgba(0,0,0,0.3); animation: slideUp 0.3s ease; }
+        .modal-header { padding: 24px 28px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 17px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .modal-header h3 i { color: var(--accent); }
+        .modal-close { width: 34px; height: 34px; border-radius: 10px; border: none; background: var(--surface-2); cursor: pointer; color: var(--text-muted); transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .modal-close:hover { background: #fee2e2; color: var(--danger); }
+        .modal-body { padding: 24px 28px; }
+        .modal-footer { padding: 20px 28px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+        .btn-secondary { padding: 10px 20px; border: 1.5px solid var(--border); background: var(--surface); border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { border-color: var(--danger); color: var(--danger); }
+        .btn-primary { padding: 10px 20px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent-light)); color: #fff; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(233,69,96,0.25); }
+
+        /* ===== SHIFT BANNER ===== */
+        .shift-status { background: linear-gradient(135deg, rgba(233,69,96,0.1), rgba(244,208,63,0.06)); border: 1px solid rgba(233,69,96,0.15); border-radius: 16px; padding: 24px 28px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .shift-status .info h4 { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+        .shift-status .info h4 i { color: var(--gold); }
+        .shift-status .info p { font-size: 13px; color: var(--text-muted); }
+        .shift-status .info .time { color: var(--gold); font-weight: 600; }
+        .shift-actions { display: flex; gap: 10px; }
+
+        /* ===== SHIFT CARDS ===== */
+        .section-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .section-title i { color: var(--accent); }
+        .shift-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 20px 24px; margin-bottom: 12px; transition: all 0.2s; }
+        .shift-item:hover { background: rgba(255,255,255,0.05); }
+        .shift-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .shift-item-header h5 { font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; }
+        .shift-item-header h5 i { font-size: 11px; }
+        .shift-item-header .time { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+        .shift-item p { font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+        .shift-item .meta { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; gap: 24px; }
+        .shift-item .meta span { font-size: 11px; color: var(--text-muted); }
+        .shift-item .meta span strong { color: var(--gold); font-weight: 600; }
+
+        /* ===== REPORTS ===== */
+        .export-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+        .export-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 28px; text-align: center; color: #fff; cursor: pointer; transition: all 0.3s; }
+        .export-card:hover { transform: translateY(-4px); background: rgba(255,255,255,0.06); box-shadow: 0 12px 40px rgba(0,0,0,0.2); }
+        .export-card .icon-big { font-size: 36px; margin-bottom: 14px; }
+        .export-card.pdf .icon-big { color: #f87171; }
+        .export-card.excel .icon-big { color: #34d399; }
+        .export-card.word .icon-big { color: #60a5fa; }
+        .export-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+        .export-card p { font-size: 11px; color: var(--text-muted); }
+
+        .config-card { background: var(--surface); border-radius: 16px; padding: 28px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+        .config-card h3 { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+        .config-card h3 i { color: var(--accent); }
+        .config-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .config-card .field label { font-size: 11px; }
+        .config-card .field input { padding: 10px 12px; font-size: 13px; }
+
+        /* ===== ALERT ===== */
+        .toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 12px; color: #fff; font-size: 13px; font-weight: 600; z-index: 300; animation: slideRight 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes slideRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) { .cards-row { grid-template-columns: repeat(2, 1fr); } .export-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .sidebar { width: 60px; } .sidebar-head h2, .sidebar-head span, .nav-link span, .user-info { display: none; } .main { margin-left: 60px; } .cards-row { grid-template-columns: 1fr; } .shift-status { flex-direction: column; gap: 14px; align-items: flex-start; } .home-stats { gap: 30px; } }
+    </style>
+</head>
+<body>
+
+<!-- ===== AUTH SCREEN ===== -->
+<div class="auth-screen" id="authScreen">
+    <div class="auth-card">
+        <div class="auth-brand">
+            <div class="logo-ring">&#128661;</div>
+            <h1>Me Leva Taxi</h1>
+            <p>Sistema de Contatos Corporativos</p>
+        </div>
+        <div class="auth-tabs">
+            <button class="auth-tab active" onclick="switchTab('login')" id="tabLogin">Entrar</button>
+            <button class="auth-tab" onclick="switchTab('register')" id="tabRegister">Cadastrar</button>
+        </div>
+        <!-- Login Form -->
+        <div id="formLogin">
+            <div class="field"><label>Email</label><input type="email" id="loginEmail" placeholder="nome@meleva.ao"></div>
+            <div class="field"><label>Palavra-passe</label><input type="password" id="loginPass" placeholder="********"></div>
+            <button class="btn btn-accent" onclick="doLogin()">Entrar no Sistema</button>
+            <div class="auth-hint">
+                <p><strong>Lider:</strong> Leandro@meleva.ao / tentadenovo</p>
+                <p><strong>Colegas:</strong> Jordao@meleva.ao / novatenta</p>
+                <p><strong>Engenheiro:</strong> Jose@meleva.ao / novatenta</p>
+            </div>
+        </div>
+        <!-- Register Form -->
+        <div id="formRegister" style="display:none;">
+            <div class="field"><label>Nome Completo</label><input type="text" id="regNome" placeholder="Nome completo"></div>
+            <div class="field"><label>Email</label><input type="email" id="regEmail" placeholder="nome@meleva.ao"></div>
+            <div class="field"><label>Palavra-passe</label><input type="password" id="regPass" placeholder="********"></div>
+            <div class="field">
+                <label>Cargo</label>
+                <select id="regCargo">
+                    <option value="">Selecione o cargo</option>
+                    <option value="lider">Lider de Grupo / Engenheiro</option>
+                    <option value="funcionario">Funcionario / Membro do Grupo</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Grupo de Trabalho</label>
+                <select id="regGrupo">
+                    <option value="">Selecione o grupo</option>
+                    <option value="grupo1">Grupo 1 (08:00 - 12:30)</option>
+                    <option value="grupo2">Grupo 2 (13:00 - 16:30)</option>
+                </select>
+            </div>
+            <button class="btn btn-accent" onclick="doRegister()">Criar Conta</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div class="app" id="app">
+    <div class="sidebar">
+        <div class="sidebar-head">
+            <div class="sidebar-logo">
+                <div class="icon">&#128661;</div>
+                <h2>Me Leva Taxi</h2>
+            </div>
+            <span>Gestao de Contactos</span>
+        </div>
+        <div class="sidebar-nav">
+            <div class="nav-link active" onclick="goPage('home')"><i class="fas fa-home"></i><span>Inicio</span></div>
+            <div class="nav-link" onclick="goPage('contatos')"><i class="fas fa-address-book"></i><span>Contactos</span></div>
+            <div class="nav-link" onclick="goPage('turnos')"><i class="fas fa-clock"></i><span>Turnos</span></div>
+            <div class="nav-link" onclick="goPage('relatorios')"><i class="fas fa-file-export"></i><span>Relatorios</span></div>
+        </div>
+        <div class="sidebar-foot">
+            <div class="user-card">
+                <div class="user-avatar" id="sideAvatar">U</div>
+                <div class="user-info">
+                    <h4 id="sideName">Utilizador</h4>
+                    <span id="sideRole">Cargo</span>
+                </div>
+            </div>
+            <button class="btn-logout" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- HOME -->
+        <div class="page active" id="pageHome">
+            <div class="home-hero">
+                <div class="taxi-icon">&#128661;</div>
+                <h1>Me Leva Taxi</h1>
+                <p class="tagline">Sua viagem, nossa prioridade.</p>
+                <div class="home-stats">
+                    <div class="home-stat"><div class="num" id="homeTotal">0</div><div class="label">Contactos</div></div>
+                    <div class="home-stat"><div class="num" id="homeHoje">0</div><div class="label">Hoje</div></div>
+                    <div class="home-stat"><div class="num" id="homeTurnos">0</div><div class="label">Turnos</div></div>
+                </div>
+                <div class="home-quote">
+                    <p>Levamos voce ao seu destino com seguranca e confianca. Cada contacto e uma oportunidade de servir melhor.</p>
+                    <span class="author">Me Leva Taxi, Lda</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTACTS -->
+        <div class="page" id="pageContatos">
+            <div class="page-top">
+                <div>
+                    <h2>Gerenciar Contactos</h2>
+                    <p>Base de dados de contactos corporativos</p>
+                </div>
+                <div class="page-actions">
+                    <div class="export-menu" style="position:relative;">
+                        <button class="btn-sm btn-ghost" onclick="toggleExport()"><i class="fas fa-download"></i> Exportar</button>
+                        <div id="exportMenu" style="display:none; position:absolute; top:100%; right:0; margin-top:6px; background:#fff; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,0.15); overflow:hidden; min-width:180px; z-index:50; border:1px solid var(--border);">
+                            <button onclick="exportPDF()" style="width:100%; padding:12px 16px; border:none; background:#fff; font-family:inherit; font-size:12px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:10px; text-align:left; color:var(--text); transition:all 0.15s;"><i class="fas fa-file-pdf" style="color:#ef4444; width:16px;"></i> Exportar PDF</button>
+                            <button onclick="exportExcel()" style="width:100%; padding:12px 16px; border:none; background:#fff; font-family:inherit; font-size:12px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:10px; text-align:left; color:var(--text); transition:all 0.15s;"><i class="fas fa-file-excel" style="color:#10b981; width:16px;"></i> Exportar Excel</button>
+                            <button onclick="exportWord()" style="width:100%; padding:12px 16px; border:none; background:#fff; font-family:inherit; font-size:12px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:10px; text-align:left; color:var(--text); transition:all 0.15s;"><i class="fas fa-file-word" style="color:#3b82f6; width:16px;"></i> Exportar Word</button>
+                        </div>
+                    </div>
+                    <button class="btn-sm btn-cta" id="btnAdd" onclick="openModal()"><i class="fas fa-plus"></i> Novo Contacto</button>
+                </div>
+            </div>
+            <div class="cards-row">
+                <div class="stat-card"><div class="icon-wrap blue"><i class="fas fa-users"></i></div><div class="value" id="statTotal">0</div><div class="label">Total</div></div>
+                <div class="stat-card"><div class="icon-wrap green"><i class="fas fa-calendar-day"></i></div><div class="value" id="statHoje">0</div><div class="label">Hoje</div></div>
+                <div class="stat-card"><div class="icon-wrap orange"><i class="fas fa-building"></i></div><div class="value" id="statEmpresas">0</div><div class="label">Empresas</div></div>
+                <div class="stat-card"><div class="icon-wrap purple"><i class="fas fa-clock"></i></div><div class="value" id="statTurno">-</div><div class="label">Turno Atual</div></div>
+            </div>
+            <div class="table-card">
+                <div class="table-head">
+                    <h3><i class="fas fa-list"></i>Lista de Contactos</h3>
+                    <div class="search-box"><i class="fas fa-search"></i><input type="text" id="searchInput" placeholder="Pesquisar contactos..." onkeyup="renderTable()"></div>
+                </div>
+                <table>
+                    <thead><tr><th>Empresa</th><th>Motorista</th><th>Contacto Motorista</th><th>Endereco</th><th>Email</th><th>Data</th><th>Acoes</th></tr></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TURNOS -->
+        <div class="page" id="pageTurnos">
+            <div class="page-top"><div><h2>Turnos e Passagem</h2><p>Gestao de turnos e passagem de servico</p></div></div>
+            <div class="shift-status">
+                <div class="info">
+                    <h4><i class="fas fa-clock"></i>Turno Atual</h4>
+                    <p>Voce pertence ao <span class="time" id="meuTurno">-</span></p>
+                </div>
+                <div class="shift-actions">
+                    <button class="btn-sm btn-ghost" onclick="openShiftModal('iniciar')"><i class="fas fa-play"></i> Iniciar Turno</button>
+                    <button class="btn-sm btn-cta" onclick="openShiftModal('encerrar')"><i class="fas fa-stop"></i> Encerrar Turno</button>
+                </div>
+            </div>
+            <h3 class="section-title"><i class="fas fa-history"></i>Historico de Turnos</h3>
+            <div id="shiftList"></div>
+        </div>
+
+        <!-- RELATORIOS -->
+        <div class="page" id="pageRelatorios">
+            <div class="page-top"><div><h2>Relatorios e Exportacao</h2><p>Configure e exporte relatorios oficiais</p></div></div>
+            <div class="export-grid">
+                <div class="export-card pdf" onclick="exportPDF()"><div class="icon-big"><i class="fas fa-file-pdf"></i></div><h4>Exportar PDF</h4><p>Relatorio completo com assinaturas</p></div>
+                <div class="export-card excel" onclick="exportExcel()"><div class="icon-big"><i class="fas fa-file-excel"></i></div><h4>Exportar Excel</h4><p>Planilha com todos os dados</p></div>
+                <div class="export-card word" onclick="exportWord()"><div class="icon-big"><i class="fas fa-file-word"></i></div><h4>Exportar Word</h4><p>Documento editavel</p></div>
+            </div>
+            <div class="config-card">
+                <h3><i class="fas fa-cog"></i>Configuracao do Relatorio</h3>
+                <div class="config-grid">
+                    <div class="field"><label>Nome do Lider</label><input type="text" id="repLider" value="Leandro Manuel"></div>
+                    <div class="field"><label>Cargo do Lider</label><input type="text" id="repCargoLider" value="Lider de Grupo / Engenheiro"></div>
+                    <div class="field"><label>Nome do Engenheiro</label><input type="text" id="repEng" value="Jose"></div>
+                    <div class="field"><label>Cargo do Engenheiro</label><input type="text" id="repCargoEng" value="Engenheiro Responsavel"></div>
+                    <div class="field"><label>Data do Relatorio</label><input type="date" id="repData"></div>
+                    <div class="field"><label>Empresa</label><input type="text" id="repEmpresa" value="Me Leva Taxi, Lda" readonly></div>
+                </div>
+                <div class="field" style="margin-top:16px;"><label>Observacoes</label><input type="text" id="repObs" value="Relatorio de contactos corporativos da Me Leva Taxi." style="width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:10px; font-family:inherit; font-size:13px; outline:none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL CONTACT ===== -->
+<div class="modal-overlay" id="modalContact">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle"><i class="fas fa-user-plus"></i>Novo Contacto</h3>
+            <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editId">
+            <div class="config-grid">
+                <div class="field"><label>Nome da Empresa *</label><input type="text" id="inpEmpresa" placeholder="Nome da empresa"></div>
+                <div class="field"><label>Nome do Motorista *</label><input type="text" id="inpMotorista" placeholder="Nome completo do motorista"></div>
+            </div>
+            <div class="config-grid" style="margin-top:16px;">
+                <div class="field"><label>Contacto do Motorista *</label><input type="text" id="inpContMotorista" placeholder="+244 9XX XXX XXX"></div>
+                <div class="field"><label>Email *</label><input type="email" id="inpEmail" placeholder="email@empresa.com"></div>
+            </div>
+            <div class="field" style="margin-top:16px;"><label>Endereco *</label><input type="text" id="inpEndereco" placeholder="Rua, Bairro, Cidade, Provincia"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button class="btn-primary" onclick="saveContact()">Guardar Contacto</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL SHIFT ===== -->
+<div class="modal-overlay" id="modalShift">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="shiftModalTitle"><i class="fas fa-clock"></i>Encerrar Turno</h3>
+            <button class="modal-close" onclick="closeShiftModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="field"><label>Informacao para o proximo grupo *</label><textarea id="shiftMsg" placeholder="Descreva o que o proximo grupo precisa fazer, contactos pendentes, tarefas em andamento..." style="width:100%; padding:12px; border:1.5px solid var(--border); border-radius:10px; font-family:inherit; font-size:13px; resize:vertical; min-height:100px; outline:none;"></textarea></div>
+            <div class="field"><label>Ultimo contacto registado</label><input type="text" id="shiftLast" readonly style="background:var(--surface-2);"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeShiftModal()">Cancelar</button>
+            <button class="btn-primary" onclick="saveShift()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== DATA =====
+let users = JSON.parse(localStorage.getItem('mlt_users')) || [
+    { id: 1, nome: "Leandro Manuel", email: "Leandro@meleva.ao", pass: "tentadenovo", cargo: "lider", grupo: "grupo1" },
+    { id: 2, nome: "Jose", email: "Jose@meleva.ao", pass: "novatenta", cargo: "lider", grupo: "grupo2" },
+    { id: 3, nome: "Jordao", email: "Jordao@meleva.ao", pass: "novatenta", cargo: "funcionario", grupo: "grupo2" },
+    { id: 4, nome: "Yana", email: "Yana@meleva.ao", pass: "novatenta", cargo: "funcionario", grupo: "grupo2" },
+    { id: 5, nome: "Andreia", email: "Andreia@meleva.ao", pass: "novatenta", cargo: "funcionario", grupo: "grupo1" }
+];
+let contacts = JSON.parse(localStorage.getItem('mlt_contacts')) || [
+    { id: 1, empresa: "Empresa ABC Transportes", motorista: "Carlos Silva", contMotorista: "+244 923 456 789", endereco: "Rua dos Coqueiros, 45, Maianga, Luanda", email: "abc@transportes.ao", data: "2026-06-03", grupo: "grupo1" },
+    { id: 2, empresa: "Auto Pecas Kilamba", motorista: "Maria Fernandes", contMotorista: "+244 912 345 678", endereco: "Av. Revolucao, 120, Kilamba", email: "vendas@autopecas.ao", data: "2026-06-03", grupo: "grupo2" },
+    { id: 3, empresa: "Posto Shell Benfica", motorista: "Joao Neto", contMotorista: "+244 935 678 901", endereco: "Rua da Missao, 78, Benfica", email: "gerente@shell.ao", data: "2026-06-03", grupo: "grupo1" }
+];
+let shifts = JSON.parse(localStorage.getItem('mlt_shifts')) || [];
+let currentUser = null;
+let editingId = null;
+let shiftAction = '';
+
+// ===== AUTH =====
+function switchTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab' + (tab === 'login' ? 'Login' : 'Register')).classList.add('active');
+    document.getElementById('formLogin').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('formRegister').style.display = tab === 'register' ? 'block' : 'none';
+}
+
+function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass = document.getElementById('loginPass').value.trim();
+    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.pass === pass);
+    if (!user) { toast('Email ou palavra-passe incorretos!', 'error'); return; }
+    currentUser = user;
+    enterApp();
+}
+
+function doRegister() {
+    const nome = document.getElementById('regNome').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const pass = document.getElementById('regPass').value.trim();
+    const cargo = document.getElementById('regCargo').value;
+    const grupo = document.getElementById('regGrupo').value;
+    if (!nome || !email || !pass || !cargo || !grupo) { toast('Preencha todos os campos!', 'error'); return; }
+    if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) { toast('Este email ja esta cadastrado!', 'error'); return; }
+    const id = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1;
+    users.push({ id, nome, email, pass, cargo, grupo });
+    localStorage.setItem('mlt_users', JSON.stringify(users));
+    toast('Conta criada com sucesso! Faca login.', 'success');
+    switchTab('login');
+    document.getElementById('loginEmail').value = email;
+}
+
+function doLogout() {
+    currentUser = null;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPass').value = '';
+}
+
+function enterApp() {
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('sideName').textContent = currentUser.nome;
+    document.getElementById('sideRole').textContent = currentUser.cargo === 'lider' ? 'Lider de Grupo' : 'Membro - ' + (currentUser.grupo === 'grupo1' ? 'Grupo 1' : 'Grupo 2');
+    document.getElementById('sideAvatar').textContent = currentUser.nome.charAt(0);
+    document.getElementById('meuTurno').textContent = currentUser.grupo === 'grupo1' ? 'Grupo 1 (08:00 - 12:30)' : 'Grupo 2 (13:00 - 16:30)';
+    document.getElementById('repData').value = new Date().toISOString().split('T')[0];
+    renderTable();
+    updateStats();
+    renderShifts();
+    toast('Bem-vindo, ' + currentUser.nome + '!', 'success');
+}
+
+// ===== NAV =====
+function goPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+    document.getElementById('page' + page.charAt(0).toUpperCase() + page.slice(1)).classList.add('active');
+    event.currentTarget.classList.add('active');
+    if (page === 'contatos') { renderTable(); updateStats(); }
+    if (page === 'turnos') renderShifts();
+}
+
+// ===== CONTACTS =====
+function renderTable() {
+    const tbody = document.getElementById('tableBody');
+    const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    let data = contacts;
+    if (search) {
+        data = contacts.filter(c => c.empresa.toLowerCase().includes(search) || c.motorista.toLowerCase().includes(search) || c.endereco.toLowerCase().includes(search) || c.contMotorista.includes(search) || c.email.toLowerCase().includes(search));
+    }
+    tbody.innerHTML = data.map(c => `
+        <tr>
+            <td><div class="td-user"><div class="td-avatar">${c.empresa.charAt(0)}</div>${c.empresa}</div></td>
+            <td>${c.motorista}</td>
+            <td>${c.contMotorista}</td>
+            <td>${c.endereco}</td>
+            <td>${c.email}</td>
+            <td><span class="td-badge">${fmtDate(c.data)}</span></td>
+            <td>
+                <div class="td-actions">
+                    <button class="action-btn view" onclick="viewContact(${c.id})" title="Ver"><i class="fas fa-eye"></i></button>
+                    ${currentUser?.cargo === 'lider' ? `
+                    <button class="action-btn edit" onclick="editContact(${c.id})" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn del" onclick="deleteContact(${c.id})" title="Eliminar"><i class="fas fa-trash"></i></button>` : ''}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openModal() {
+    editingId = null;
+    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-user-plus"></i>Novo Contacto';
+    document.getElementById('editId').value = '';
+    document.getElementById('inpEmpresa').value = '';
+    document.getElementById('inpMotorista').value = '';
+    document.getElementById('inpContMotorista').value = '';
+    document.getElementById('inpEndereco').value = '';
+    document.getElementById('inpEmail').value = '';
+    document.getElementById('modalContact').classList.add('show');
+}
+
+function closeModal() { document.getElementById('modalContact').classList.remove('show'); }
+
+function saveContact() {
+    const empresa = document.getElementById('inpEmpresa').value.trim();
+    const motorista = document.getElementById('inpMotorista').value.trim();
+    const contMotorista = document.getElementById('inpContMotorista').value.trim();
+    const endereco = document.getElementById('inpEndereco').value.trim();
+    const email = document.getElementById('inpEmail').value.trim();
+    if (!empresa || !motorista || !contMotorista || !endereco || !email) { toast('Preencha todos os campos!', 'error'); return; }
+    if (editingId) {
+        const idx = contacts.findIndex(c => c.id === editingId);
+        contacts[idx] = { ...contacts[idx], empresa, motorista, contMotorista, endereco, email };
+        toast('Contacto atualizado!', 'success');
+    } else {
+        const id = contacts.length > 0 ? Math.max(...contacts.map(c => c.id)) + 1 : 1;
+        contacts.push({ id, empresa, motorista, contMotorista, endereco, email, data: new Date().toISOString().split('T')[0], grupo: currentUser.grupo });
+        toast('Contacto adicionado!', 'success');
+    }
+    localStorage.setItem('mlt_contacts', JSON.stringify(contacts));
+    closeModal();
+    renderTable();
+    updateStats();
+}
+
+function editContact(id) {
+    if (currentUser?.cargo !== 'lider') { toast('Apenas o lider pode editar!', 'warning'); return; }
+    const c = contacts.find(x => x.id === id); if (!c) return;
+    editingId = id;
+    document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit"></i>Editar Contacto';
+    document.getElementById('inpEmpresa').value = c.empresa;
+    document.getElementById('inpMotorista').value = c.motorista;
+    document.getElementById('inpContMotorista').value = c.contMotorista;
+    document.getElementById('inpEndereco').value = c.endereco;
+    document.getElementById('inpEmail').value = c.email;
+    document.getElementById('modalContact').classList.add('show');
+}
+
+function deleteContact(id) {
+    if (currentUser?.cargo !== 'lider') { toast('Apenas o lider pode eliminar!', 'warning'); return; }
+    if (!confirm('Eliminar este contacto?')) return;
+    contacts = contacts.filter(c => c.id !== id);
+    localStorage.setItem('mlt_contacts', JSON.stringify(contacts));
+    renderTable(); updateStats(); toast('Contacto eliminado!', 'success');
+}
+
+function viewContact(id) {
+    const c = contacts.find(x => x.id === id); if (!c) return;
+    alert('DETALHES DO CONTACTO\n\nEmpresa: ' + c.empresa + '\nMotorista: ' + c.motorista + '\nContacto Motorista: ' + c.contMotorista + '\nEndereco: ' + c.endereco + '\nEmail: ' + c.email + '\nRegistado: ' + fmtDate(c.data) + '\nGrupo: ' + (c.grupo === 'grupo1' ? 'Grupo 1 (08:00-12:30)' : 'Grupo 2 (13:00-16:30)'));
+}
+
+function updateStats() {
+    const hoje = new Date().toISOString().split('T')[0];
+    document.getElementById('statTotal').textContent = contacts.length;
+    document.getElementById('statHoje').textContent = contacts.filter(c => c.data === hoje).length;
+    document.getElementById('statEmpresas').textContent = new Set(contacts.map(c => c.empresa)).size;
+    document.getElementById('statTurno').textContent = getCurrentGroup() === 'grupo1' ? 'Grupo 1' : 'Grupo 2';
+    document.getElementById('homeTotal').textContent = contacts.length;
+    document.getElementById('homeHoje').textContent = contacts.filter(c => c.data === hoje).length;
+    document.getElementById('homeTurnos').textContent = shifts.length;
+}
+
+function getCurrentGroup() {
+    const h = new Date().getHours();
+    const m = new Date().getMinutes();
+    const time = h * 60 + m;
+    if (time >= 480 && time <= 750) return 'grupo1';
+    if (time >= 780 && time <= 990) return 'grupo2';
+    return currentUser?.grupo || 'grupo1';
+}
+
+// ===== SHIFT =====
+function openShiftModal(action) {
+    shiftAction = action;
+    document.getElementById('shiftModalTitle').innerHTML = action === 'iniciar' 
+        ? '<i class="fas fa-play" style="color:#10b981;"></i>Iniciar Turno'
+        : '<i class="fas fa-stop" style="color:#e94560;"></i>Encerrar Turno';
+    const last = contacts.length > 0 ? contacts[contacts.length - 1].empresa + ' - ' + contacts[contacts.length - 1].motorista : 'Nenhum contacto registado';
+    document.getElementById('shiftLast').value = last;
+    document.getElementById('shiftMsg').value = '';
+    document.getElementById('modalShift').classList.add('show');
+}
+
+function closeShiftModal() { document.getElementById('modalShift').classList.remove('show'); }
+
+function saveShift() {
+    const msg = document.getElementById('shiftMsg').value.trim();
+    if (shiftAction === 'encerrar' && !msg) { toast('Informe o que o proximo grupo deve fazer!', 'error'); return; }
+    const shift = {
+        id: shifts.length > 0 ? Math.max(...shifts.map(s => s.id)) + 1 : 1,
+        user: currentUser.nome,
+        grupo: currentUser.grupo,
+        action: shiftAction,
+        msg: msg || 'Turno iniciado.',
+        lastContact: document.getElementById('shiftLast').value,
+        data: new Date().toISOString(),
+        hora: new Date().toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'})
+    };
+    shifts.unshift(shift);
+    localStorage.setItem('mlt_shifts', JSON.stringify(shifts));
+    closeShiftModal();
+    renderShifts();
+    updateStats();
+    toast(shiftAction === 'iniciar' ? 'Turno iniciado com sucesso!' : 'Turno encerrado! Proximo grupo notificado.', 'success');
+}
+
+function renderShifts() {
+    const div = document.getElementById('shiftList');
+    if (shifts.length === 0) { div.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:30px; font-size:13px;">Nenhum turno registado ainda.</p>'; return; }
+    div.innerHTML = shifts.map(s => `
+        <div class="shift-item">
+            <div class="shift-item-header">
+                <h5><i class="fas fa-${s.action === 'iniciar' ? 'play' : 'stop'}" style="color:${s.action === 'iniciar' ? '#10b981' : '#e94560'};"></i>${s.user} - ${s.grupo === 'grupo1' ? 'Grupo 1' : 'Grupo 2'}</h5>
+                <span class="time">${fmtDate(s.data.split('T')[0])} as ${s.hora}</span>
+            </div>
+            <p><strong style="color:var(--gold);">Mensagem:</strong> ${s.msg}</p>
+            <div class="meta">
+                <span>Ultimo contacto: <strong>${s.lastContact}</strong></span>
+                <span>Assinado: <strong>${s.user}</strong></span>
+                <span>Turno: <strong>${s.grupo === 'grupo1' ? '08:00-12:30' : '13:00-16:30'}</strong></span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ===== EXPORT =====
+function toggleExport() {
+    const m = document.getElementById('exportMenu');
+    m.style.display = m.style.display === 'block' ? 'none' : 'block';
+}
+document.addEventListener('click', function(e) { if (!e.target.closest('.export-menu')) document.getElementById('exportMenu').style.display = 'none'; });
+
+function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4');
+    const lider = document.getElementById('repLider').value || 'Leandro Manuel';
+    const cargoLider = document.getElementById('repCargoLider').value || 'Lider de Grupo / Engenheiro';
+    const eng = document.getElementById('repEng').value || 'Jose';
+    const cargoEng = document.getElementById('repCargoEng').value || 'Engenheiro Responsavel';
+    const data = document.getElementById('repData').value || new Date().toISOString().split('T')[0];
+
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 297, 32, 'F');
+    doc.setTextColor(244, 208, 63);
+    doc.setFontSize(22);
+    doc.text('ME LEVA TAXI, LDA', 148, 13, { align: 'center' });
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.text('Relatorio de Contactos Corporativos', 148, 24, { align: 'center' });
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(9);
+    doc.text('Data: ' + fmtDate(data) + ' | Total: ' + contacts.length + ' contactos', 14, 42);
+
+    doc.autoTable({
+        startY: 48,
+        head: [['#', 'Empresa', 'Motorista', 'Contacto Motorista', 'Endereco', 'Email', 'Data', 'Grupo']],
+        body: contacts.map((c, i) => [i+1, c.empresa, c.motorista, c.contMotorista, c.endereco, c.email, fmtDate(c.data), c.grupo === 'grupo1' ? 'Grupo 1' : 'Grupo 2']),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: [244, 208, 63], fontSize: 9, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: { 0: { cellWidth: 7 }, 1: { cellWidth: 38 }, 2: { cellWidth: 30 }, 3: { cellWidth: 32 }, 4: { cellWidth: 45 }, 5: { cellWidth: 38 }, 6: { cellWidth: 20 }, 7: { cellWidth: 18 } }
+    });
+
+    const y = doc.lastAutoTable.finalY + 22;
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.5);
+
+    doc.line(40, y, 120, y);
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(10);
+    doc.text(lider, 80, y + 6, { align: 'center' });
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(cargoLider, 80, y + 11, { align: 'center' });
+
+    doc.line(170, y, 250, y);
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(10);
+    doc.text(eng, 210, y + 6, { align: 'center' });
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(cargoEng, 210, y + 11, { align: 'center' });
+
+    doc.setFontSize(8);
+    doc.text('Documento gerado: ' + new Date().toLocaleString('pt-PT') + ' | Me Leva Taxi, Lda', 14, y + 18);
+
+    doc.save('MeLevaTaxi_Contactos.pdf');
+    toast('PDF exportado com sucesso!', 'success');
+    toggleExport();
+}
+
+function exportExcel() {
+    const lider = document.getElementById('repLider').value;
+    const eng = document.getElementById('repEng').value;
+    const data = document.getElementById('repData').value || new Date().toISOString().split('T')[0];
+    const ws_data = [
+        ['ME LEVA TAXI, LDA - Relatorio de Contactos'],
+        ['Data: ' + fmtDate(data) + ' | Lider: ' + lider + ' | Engenheiro: ' + eng],
+        [],
+        ['#', 'Empresa', 'Motorista', 'Contacto Motorista', 'Endereco', 'Email', 'Data', 'Grupo']
+    ];
+    contacts.forEach((c, i) => ws_data.push([i+1, c.empresa, c.motorista, c.contMotorista, c.endereco, c.email, fmtDate(c.data), c.grupo === 'grupo1' ? 'Grupo 1' : 'Grupo 2']));
+    ws_data.push([], ['ASSINATURAS:'], ['Lider:', lider], ['Engenheiro:', eng]);
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols'] = [{wch:4}, {wch:30}, {wch:25}, {wch:20}, {wch:35}, {wch:30}, {wch:15}, {wch:12}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Contactos');
+    XLSX.writeFile(wb, 'MeLevaTaxi_Contactos.xlsx');
+    toast('Excel exportado com sucesso!', 'success');
+    toggleExport();
+}
+
+function exportWord() {
+    const lider = document.getElementById('repLider').value;
+    const cargoLider = document.getElementById('repCargoLider').value;
+    const eng = document.getElementById('repEng').value;
+    const cargoEng = document.getElementById('repCargoEng').value;
+    const data = document.getElementById('repData').value || new Date().toISOString().split('T')[0];
+    const obs = document.getElementById('repObs').value;
+
+    let html = '<html><head><meta charset="utf-8"><title>Me Leva Taxi</title></head>';
+    html += '<body style="font-family:Arial,sans-serif; padding:40px; background:#fff;">';
+    html += '<div style="text-align:center; border-bottom:3px solid #e94560; padding-bottom:24px; margin-bottom:32px;">';
+    html += '<h1 style="color:#0f172a; margin:0; font-size:28px; font-weight:800;">ME LEVA TAXI, LDA</h1>';
+    html += '<h2 style="color:#e94560; margin:6px 0; font-size:16px; font-weight:600;">Relatorio de Contactos Corporativos</h2>';
+    html += '<p style="color:#64748b; font-size:12px; margin-top:4px;">' + fmtDate(data) + ' | ' + contacts.length + ' contactos registados</p></div>';
+    html += '<p style="font-style:italic; color:#475569; margin-bottom:24px; font-size:13px; line-height:1.6;">' + obs + '</p>';
+    html += '<table style="width:100%; border-collapse:collapse; margin-bottom:48px; font-size:12px;">';
+    html += '<thead><tr style="background:#0f172a; color:#f4d03f;">';
+    html += '<th style="padding:10px; border:1px solid #e2e8f0; text-align:left; font-weight:700;">#</th>';
+    html += '<th style="padding:10px; border:1px solid #e2e8f0; text-align:left; font-weight:700;">Empresa</th>';
+    html += '<th style="padding:10px; border:1px solid #e2e8f0; text-align:left; font-weight:700;">Motorista</th>';
+    html += '<th style="padding:10px; border:1px solid #e2e8f0; text-align:left; font-weight:700;">Contacto</th>';
+    html += '<th style="padding:10px; border:1px solid #e2e8f0; text-align:left; font-weight:700;">Endereco</th>';
+    html += '<th style="padding:10px; border:1px solid #e2e8f0; text-align:left; font-weight:700;">Email</th>';
+    html += '<th style="padding:10px; border:1px solid #e2e8f0; text-align:left; font-weight:700;">Data</th>';
+    html += '<th style="padding:10px; border:1px solid #e2e8f0; text-align:left; font-weight:700;">Grupo</th></tr></thead><tbody>';
+
+    contacts.forEach((c, i) => {
+        const bg = i % 2 === 0 ? '#f8fafc' : '#ffffff';
+        html += '<tr style="background:' + bg + ';">';
+        html += '<td style="padding:8px 10px; border:1px solid #e2e8f0;">' + (i+1) + '</td>';
+        html += '<td style="padding:8px 10px; border:1px solid #e2e8f0;">' + c.empresa + '</td>';
+        html += '<td style="padding:8px 10px; border:1px solid #e2e8f0;">' + c.motorista + '</td>';
+        html += '<td style="padding:8px 10px; border:1px solid #e2e8f0;">' + c.contMotorista + '</td>';
+        html += '<td style="padding:8px 10px; border:1px solid #e2e8f0;">' + c.endereco + '</td>';
+        html += '<td style="padding:8px 10px; border:1px solid #e2e8f0;">' + c.email + '</td>';
+        html += '<td style="padding:8px 10px; border:1px solid #e2e8f0;">' + fmtDate(c.data) + '</td>';
+        html += '<td style="padding:8px 10px; border:1px solid #e2e8f0;">' + (c.grupo === 'grupo1' ? 'Grupo 1' : 'Grupo 2') + '</td></tr>';
+    });
+
+    html += '</tbody></table>';
+    html += '<div style="display:flex; justify-content:space-between; margin-top:56px;">';
+    html += '<div style="text-align:center; width:42%;">';
+    html += '<div style="border-top:2px solid #0f172a; margin:48px auto 10px; width:100%;"></div>';
+    html += '<p style="font-weight:700; color:#0f172a; font-size:13px; margin:0;">' + lider + '</p>';
+    html += '<p style="font-size:11px; color:#64748b; margin:4px 0 0;">' + cargoLider + '</p></div>';
+    html += '<div style="text-align:center; width:42%;">';
+    html += '<div style="border-top:2px solid #0f172a; margin:48px auto 10px; width:100%;"></div>';
+    html += '<p style="font-weight:700; color:#0f172a; font-size:13px; margin:0;">' + eng + '</p>';
+    html += '<p style="font-size:11px; color:#64748b; margin:4px 0 0;">' + cargoEng + '</p></div></div>';
+    html += '<p style="font-size:10px; color:#94a3b8; margin-top:40px; text-align:center;">Documento gerado em ' + new Date().toLocaleString('pt-PT') + ' | Me Leva Taxi, Lda</p>';
+    html += '</body></html>';
+
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'MeLevaTaxi_Contactos.doc';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    toast('Word exportado com sucesso!', 'success');
+    toggleExport();
+}
+
+// ===== UTILS =====
+function fmtDate(d) { if (!d) return ''; return new Date(d).toLocaleDateString('pt-PT'); }
+function toast(msg, tipo) {
+    const div = document.createElement('div');
+    div.className = 'toast ' + tipo;
+    const icon = tipo === 'success' ? 'check-circle' : tipo === 'error' ? 'times-circle' : 'exclamation-triangle';
+    div.innerHTML = '<i class="fas fa-' + icon + '"></i> ' + msg;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 3500);
+}
+
+document.getElementById('modalContact').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+document.getElementById('modalShift').addEventListener('click', function(e) { if (e.target === this) closeShiftModal(); });
+</script>
+</body>
+</html>
